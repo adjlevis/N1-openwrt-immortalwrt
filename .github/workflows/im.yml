@@ -3,7 +3,7 @@ name: Build ImmortalWrt Docker Image
 on:
   workflow_dispatch:
   schedule:
-    - cron: '0 16 1 * *' # 每月1号 00:00（北京时间）
+    - cron: '0 16 1 * *' # 每月1号 北京时间 00:00 自动运行
 
 jobs:
   build:
@@ -16,17 +16,27 @@ jobs:
       - name: Install dependencies
         run: sudo apt-get update && sudo apt-get install -y dos2unix
 
-      - name: Fix line endings and permissions
+      - name: Normalize line endings and permissions
         run: |
           cd immortalwrt
           dos2unix build.sh docker-build.sh || true
           chmod +x build.sh docker-build.sh
+          echo "=== 文件列表 ==="
           ls -l
 
-      - name: Run Docker build
+      # ✅ 这里插入你的权限修复步骤
+      - name: Fix permissions before Docker build
+        run: |
+          cd immortalwrt
+          chmod -R 777 .
+          ls -ld .
+
+      # 🔽 然后再执行 Docker 构建
+      - name: Run Docker Build
         run: |
           cd immortalwrt
           ./docker-build.sh
+
 
       - name: Package artifacts
         run: |
