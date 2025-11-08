@@ -1,9 +1,14 @@
 #!/bin/bash
+set -e
 
-docker run --rm -it \
--v ./bin:/home/build/immortalwrt/bin \
--v ./files:/home/build/immortalwrt/files \
--v ./build.sh:/home/build/immortalwrt/build.sh \
-immortalwrt/imagebuilder:layerscape-armv8_64b-openwrt-24.10 \
-/home/build/immortalwrt/build.sh
+# 确保输出目录存在
+mkdir -p ./bin
+
+docker run --rm \
+  -v "$(pwd)/bin:/home/build/immortalwrt/bin" \
+  -v "$(pwd)/files:/home/build/immortalwrt/files" \
+  -v "$(pwd)/build.sh:/home/build/immortalwrt/build.sh" \
+  immortalwrt/imagebuilder:layerscape-armv8_64b-openwrt-24.10 \
+  /home/build/immortalwrt/build.sh
+
 
