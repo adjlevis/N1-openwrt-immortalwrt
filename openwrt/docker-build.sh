@@ -5,11 +5,12 @@ WORKDIR=$(pwd)
 
 docker run --rm \
   --user root \
-  -v "$WORKDIR/bin:/home/build/immortalwrt/bin" \
-  -v "$WORKDIR/files:/home/build/immortalwrt/files" \
-  -v "$WORKDIR/build.sh:/home/build/immortalwrt/build.sh" \
+  -v "$WORKDIR/bin:/home/build/openwrt/bin" \
+  -v "$WORKDIR/files:/home/build/openwrt/files" \
+  -v "$WORKDIR/build.sh:/home/build/openwrt/build.sh" \
 openwrt/imagebuilder:armsr-armv8 \
-  /home/build/immortalwrt/build.sh
+  /home/build/openwrt/build.sh
+
 
 
 
