@@ -1,13 +1,57 @@
-#!/bin/bash
-set -euxo pipefail  # 启用调试和错误处理
+name: Onecloud OpenWRT docker Build
 
-WORKDIR=$(pwd)
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+  release:
+    types: [published]
 
-# 使用 openwrt/imagebuilder:armsr-armv8 镜像
-docker run --rm \
-  --user root \
-  -v "$WORKDIR/bin:/home/build/openwrt-stable/bin" \
-  -v "$WORKDIR/files:/home/build/openwrt-stable/files" \
-  -v "$WORKDIR/openwrt/docker-build.sh:/home/build/openwrt-stable/docker-build.sh" \
-  openwrt/imagebuilder:armsr-armv8 \
-  /home/build/openwrt-stable/docker-build.sh  # 执行构建脚本
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: openwrt-stable  # 确保路径正确
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Ensure scripts are executable (and convert line endings)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y dos2unix
+          dos2unix openwrt/docker-build.sh openwrt/build.sh  # 修改为正确路径
+          chmod +x openwrt/docker-build.sh openwrt/build.sh   # 修改为正确路径
+
+      - name: Build OpenWRT image
+        run: ./openwrt/docker-build.sh  # 修改为正确路径
+
+      - name: List build outputs
+        run: |
+          echo "Build completed. Files in ./bin:"
+          find bin -type f || echo "No bin directory found"
+
+      - name: Delete old releases
+        uses: dev-drprasad/delete-older-releases@v0.3.3
+        with:
+          keep_latest: 1
+          delete_tags: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create new release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest
+          name: openwrt Build $(date +'%Y-%m-%d')
+          body: |
+            Auto-built OpenWRT image for OneCloud
+            Date: $(date +'%Y-%m-%d %H:%M:%S')
+          files: |
+            openwrt-stable/bin/**/*
+
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
