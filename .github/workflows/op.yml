@@ -1,19 +1,19 @@
-name: Onecloud OpenWRT docker Build
+name: N1 OpenWRT docker Build
 
 on:
   push:
     branches:
-      - main
-  workflow_dispatch:
+      - main  # 仅在 main 分支推送时触发
+  workflow_dispatch:  # 允许手动触发工作流
   release:
-    types: [published]
+    types: [published]  # 在发布新版本时触发
 
 jobs:
   build:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: openwrt  # 修改为正确的路径，指向 openwrt 目录
+        working-directory: openwrt  # 设置工作目录为 openwrt
 
     steps:
       - name: Checkout repository
@@ -21,37 +21,42 @@ jobs:
 
       - name: Ensure scripts are executable (and convert line endings)
         run: |
+          # 安装 dos2unix 工具并转换换行符
           sudo apt-get update
           sudo apt-get install -y dos2unix
-          dos2unix openwrt/docker-build.sh openwrt/build.sh  # 修改为正确路径
-          chmod +x openwrt/docker-build.sh openwrt/build.sh   # 修改为正确路径
+          # 转换文件换行符，避免 Windows/Linux 换行符问题
+          dos2unix openwrt/docker-build.sh openwrt/build.sh  # 修正路径
+          # 设置文件可执行权限
+          chmod +x openwrt/docker-build.sh openwrt/build.sh   # 修正路径
 
       - name: Build OpenWRT image
-        run: ./openwrt/docker-build.sh  # 修改为正确路径
+        run: ./openwrt/docker-build.sh  # 执行构建脚本，路径已修正
 
       - name: List build outputs
         run: |
           echo "Build completed. Files in ./bin:"
-          find bin -type f || echo "No bin directory found"
+          # 列出生成的文件，若没有 bin 目录，则打印信息
+          find openwrt/bin -type f || echo "No bin directory found"
 
       - name: Delete old releases
         uses: dev-drprasad/delete-older-releases@v0.3.3
         with:
-          keep_latest: 1
-          delete_tags: true
+          keep_latest: 1  # 仅保留最新的一个 Release
+          delete_tags: true  # 删除旧的标签
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Create new release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: latest
-          name: openwrt Build $(date +'%Y-%m-%d')
+          tag_name: latest  # 使用最新版本标签
+          name: OpenWRT Build $(date +'%Y-%m-%d')  # 发布名称，带上当前日期
           body: |
             Auto-built OpenWRT image for OneCloud
             Date: $(date +'%Y-%m-%d %H:%M:%S')
+          # 上传 openwrt 目录下的 bin 目录下的所有文件
           files: |
             openwrt/bin/**/*
 
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # 使用 GitHub Token 进行认证
