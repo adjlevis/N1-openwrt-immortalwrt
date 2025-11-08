@@ -13,16 +13,19 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Docker
-        uses: docker/setup-buildx-action@v3
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y dos2unix
 
-      - name: Show Docker version
-        run: docker version
+      - name: Fix line endings and permissions
+        run: |
+          cd immortalwrt
+          dos2unix build.sh docker-build.sh || true
+          chmod +x build.sh docker-build.sh
+          ls -l
 
       - name: Run Docker build
         run: |
           cd immortalwrt
-          chmod +x build.sh docker-build.sh
           ./docker-build.sh
 
       - name: Package artifacts
