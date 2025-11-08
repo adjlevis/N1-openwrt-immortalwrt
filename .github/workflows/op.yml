@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: openwrt-stable  # 确保路径正确
+        working-directory: openwrt  # 修改为正确的路径，指向 openwrt 目录
 
     steps:
       - name: Checkout repository
@@ -51,7 +51,7 @@ jobs:
             Auto-built OpenWRT image for OneCloud
             Date: $(date +'%Y-%m-%d %H:%M:%S')
           files: |
-            openwrt-stable/bin/**/*
+            openwrt/bin/**/*
 
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
