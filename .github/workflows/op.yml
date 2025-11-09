@@ -2,7 +2,7 @@ name: N1 OpenWRT docker Build
 
 on:
   push:
-    branches: [ main ]  # 仅在 main 分支推送时触发
+    branches: [ main ]  # 当推送到 main 分支时触发
   workflow_dispatch:     # 允许手动触发
   release:
     types: [published]   # 当发布时触发
@@ -13,7 +13,7 @@ jobs:
 
     defaults:
       run:
-        working-directory: openwrt  # 所有命令默认在 openwrt 目录执行
+        working-directory: openwrt
 
     steps:
       - name: Checkout repository
@@ -21,24 +21,37 @@ jobs:
 
       - name: Prepare environment
         run: |
-          # 转换换行符并设置执行权限
           sed -i 's/\r$//' docker-build.sh build.sh || true
           chmod +x docker-build.sh build.sh
-          # 创建输出目录
           mkdir -p bin files
           sudo chmod -R 777 bin files
 
+      # ✅ 检查可用 profile（调试用）
+      - name: List available profiles
+        run: docker run --rm openwrt/imagebuilder:armsr-armv8-main make info | head -n 50
+
+      # ✅ 拉取镜像
       - name: Pull OpenWRT ImageBuilder
-        run: docker pull openwrt/imagebuilder:layerscape-armv8_64b-master  # 使用 armv8_64b 镜像
+        run: docker pull openwrt/imagebuilder:armsr-armv8-main
 
+      # ✅ 构建固件
       - name: Build firmware
-        run: ./docker-build.sh  # 执行构建脚本
+        run: ./docker-build.sh
 
+      # ✅ 调试输出结果
+      - name: Debug output
+        run: |
+          echo "=== openwrt/bin 内容 ==="
+          ls -R bin || true
+
+      # ✅ 上传构建产物
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
           name: openwrt-images
           path: openwrt/bin/
+          if-no-files-found: warn
+          compression-level: 6
 
       # 🕒 获取北京时间（UTC+8）
       - name: Get Beijing Time
@@ -47,15 +60,15 @@ jobs:
           export TZ=Asia/Shanghai
           echo "datetime=$(date '+%Y-%m-%d %H:%M:%S %Z')" >> $GITHUB_OUTPUT
 
+      # ✅ 修复多行输出写法
       - name: List built files
         id: list_files
         run: |
           {
             echo 'files<<EOF'
-            ls -1 bin/
+            ls -1 bin/targets/armsr/armv8/ || ls -1 bin/ || echo "无输出文件"
             echo 'EOF'
           } >> $GITHUB_OUTPUT
-
 
       # 🚀 发布 Release
       - name: Publish to GitHub Release
@@ -63,7 +76,7 @@ jobs:
         if: github.ref == 'refs/heads/main'
         with:
           tag_name: build-${{ github.run_number }}
-          name: "N1 OpenWrt {{ github.run_number }}"  # 固定标题
+          name: "N1 OpenWrt ${{ github.run_number }}"
           body: |
             ✅ N1 OpenWrt 固件自动构建完成！
 
@@ -72,10 +85,12 @@ jobs:
             - 发布时间（北京时间）：${{ steps.time.outputs.datetime }}
 
             以下为本次构建的固件文件：
-            ```bash
+            ```
             ${{ steps.list_files.outputs.files }}
             ```
-          文件: openwrt/bin/**
+          files: |
+            openwrt/bin/targets/armsr/armv8/**
+            openwrt/bin/**
           overwrite_files: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
