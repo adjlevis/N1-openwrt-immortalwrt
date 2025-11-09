@@ -9,5 +9,5 @@ docker run --rm \
   -v "$WORKDIR/bin:/builder/bin" \
   -v "$WORKDIR/files:/builder/files" \
   -v "$WORKDIR/build.sh:/builder/build.sh" \
-  immortalwrt/imagebuilder:armsr-armv8 \
+  openwrt/imagebuilder:armsr-armv8-main \
   bash -c "cd /builder && ./build.sh"
