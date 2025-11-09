@@ -1,4 +1,4 @@
-name: N1 OpenWRT docker Build
+name: N1 ImmortalWRT docker Build
 
 on:
   push:
@@ -13,7 +13,7 @@ jobs:
 
     defaults:
       run:
-        working-directory: openwrt  # 所有命令默认在 openwrt 目录执行
+        working-directory: immortalwrt  # ✅ 所有命令在该目录执行
 
     steps:
       - name: Checkout repository
@@ -21,24 +21,24 @@ jobs:
 
       - name: Prepare environment
         run: |
-          # 转换换行符并设置执行权限
+          # 修正换行符并确保脚本可执行
           sed -i 's/\r$//' docker-build.sh build.sh || true
           chmod +x docker-build.sh build.sh
           # 创建输出目录
           mkdir -p bin files
           sudo chmod -R 777 bin files
 
-      - name: Pull OpenWRT ImageBuilder
-        run: docker pull openwrt/imagebuilder:layerscape-armv8_64b-master  # 使用 armv8_64b 镜像
+      - name: Pull ImmortalWRT ImageBuilder
+        run: docker pull immortalwrt/imagebuilder:armsr-armv8-openwrt-24.10  # ✅ 正确镜像
 
       - name: Build firmware
-        run: ./docker-build.sh  # 执行构建脚本
+        run: ./docker-build.sh  # ✅ 执行构建脚本
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: openwrt-images
-          path: openwrt/bin/
+          name: immortalwrt-images
+          path: immortalwrt/bin/
 
       # 🕒 获取北京时间（UTC+8）
       - name: Get Beijing Time
@@ -57,25 +57,25 @@ jobs:
         uses: softprops/action-gh-release@v2
         if: github.ref == 'refs/heads/main'
         with:
-          tag_name: build-${{ github.run_number }}   # 每次构建仍保留独立 tag
-          name: "N1 OpenWrt"  # ✅ 固定标题，不带编号
+          tag_name: build-${{ github.run_number }}  # ✅ 保留独立编号
+          name: "N1 ImmortalWrt"  # ✅ 固定标题
           body: |
-            ✅ N1 OpenWrt 固件自动构建完成！
+            ✅ N1 ImmortalWrt 固件自动构建完成！
 
             - 分支：${{ github.ref_name }}
             - 构建编号：${{ github.run_number }}
             - 发布时间（北京时间）：${{ steps.time.outputs.datetime }}
 
-            以下为本次构建的固件文件：
+            以下为本次构建生成的固件文件：
             ```bash
             ${{ steps.list_files.outputs.files }}
             ```
-          files: openwrt/bin/**
+          files: immortalwrt/bin/**
           overwrite_files: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # 🧹 清理旧版本，只保留最近 1 个
+      # 🧹 清理旧版本，仅保留最近 1 个
       - name: Clean up old releases
         if: github.ref == 'refs/heads/main'
         uses: dev-drprasad/delete-older-releases@v0.3.4
