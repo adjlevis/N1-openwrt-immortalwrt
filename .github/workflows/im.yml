@@ -56,7 +56,7 @@ jobs:
         if: github.ref == 'refs/heads/main'  # 仅在 main 分支时执行
         with:
           tag_name: build-${{ github.run_number }}
-          name: "OneCloud ImmortalWrt #${{ github.run_number }}"  # 固定名称
+          name: "OneCloud ImmortalWrt {{ github.run_number }}"  # 固定名称
           body: |
             ✅ N1 ImmortalWrt 固件自动构建完成！
 
