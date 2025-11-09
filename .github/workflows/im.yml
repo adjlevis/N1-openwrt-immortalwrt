@@ -19,6 +19,12 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Clean old release folder
+        run: |
+          echo "🧹 清理旧的 release/immortalwrt 目录..."
+          rm -rf release/immortalwrt || true
+          mkdir -p release/immortalwrt
+
       - name: Prepare environment
         run: |
           sed -i 's/\r$//' docker-build.sh build.sh || true
@@ -54,12 +60,12 @@ jobs:
         run: |
           echo "files=$(ls -1 bin/ | sed 's/^/  - /')" >> $GITHUB_OUTPUT
 
-      - name: Publish to Shared GitHub Release
+      - name: Publish to ImmortalWRT Release
         uses: softprops/action-gh-release@v2
         if: github.ref == 'refs/heads/main'
         with:
-          tag_name: N1-Firmware
-          name: "N1 Firmware Builds"
+          tag_name: N1-ImmortalWRT
+          name: "N1 ImmortalWRT"
           body: |
             ✅ N1 ImmortalWrt 固件自动构建完成！
 
@@ -72,15 +78,16 @@ jobs:
             ${{ steps.list_files.outputs.files }}
             ```
           files: release/immortalwrt/**/*
-          append_body: true
+          overwrite: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Clean up old releases
+      - name: Clean up old ImmortalWRT releases
         if: github.ref == 'refs/heads/main'
         uses: dev-drprasad/delete-older-releases@v0.3.4
         with:
           keep_latest: 1
           delete_tags: true
+          delete_pattern: N1-ImmortalWRT*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
