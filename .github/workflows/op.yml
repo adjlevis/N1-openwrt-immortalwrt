@@ -16,9 +16,11 @@ jobs:
         working-directory: openwrt
 
     steps:
+      # ✅ 检出仓库
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      # ✅ 准备环境
       - name: Prepare environment
         run: |
           sed -i 's/\r$//' docker-build.sh build.sh || true
@@ -26,7 +28,7 @@ jobs:
           mkdir -p bin files
           sudo chmod -R 777 bin files
 
-      # ✅ 检查可用 profile（调试用）
+      # ✅ 列出可用 profile（调试）
       - name: List available profiles
         run: docker run --rm openwrt/imagebuilder:armsr-armv8-main make info | head -n 50
 
@@ -70,13 +72,21 @@ jobs:
             echo 'EOF'
           } >> $GITHUB_OUTPUT
 
-      # 🚀 发布 Release
+      # ✅ 调试查看生成文件
+      - name: Show firmware files
+        run: |
+          echo "=== 确认固件路径 ==="
+          ls -lh openwrt/bin/targets/armsr/armv8/ || true
+
+      # 🚀 发布 Release（名称固定为 N1 OpenWrt）
       - name: Publish to GitHub Release
         uses: softprops/action-gh-release@v2
         if: github.ref == 'refs/heads/main'
         with:
           tag_name: build-${{ github.run_number }}
-          name: "N1 OpenWrt ${{ github.run_number }}"
+          name: "N1 OpenWrt"
+          generate_release_notes: true
+          make_latest: true
           body: |
             ✅ N1 OpenWrt 固件自动构建完成！
 
@@ -89,9 +99,7 @@ jobs:
             ${{ steps.list_files.outputs.files }}
             ```
           files: |
-            openwrt/bin/targets/armsr/armv8/**
-            openwrt/bin/**
-          overwrite_files: true
+            openwrt/bin/targets/armsr/armv8/*.{img,bin,tar,tar.gz,img.gz,bin.gz}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
