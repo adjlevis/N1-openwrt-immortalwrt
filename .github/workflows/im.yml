@@ -1,9 +1,11 @@
-name: N1 ImmortalWRT docker Build 
+name: N1 OpenWRT docker Build
 
 on:
   push:
-    branches: [ main ]  # 只在 main 分支推送时触发
-  workflow_dispatch:  # 允许手动触发
+    branches: [ main ]  # 仅在 main 分支推送时触发
+  workflow_dispatch:     # 允许手动触发
+  release:
+    types: [published]   # 当发布时触发
 
 jobs:
   build:
@@ -11,7 +13,7 @@ jobs:
 
     defaults:
       run:
-        working-directory: immortalwrt  # 所有命令默认在此目录执行
+        working-directory: openwrt  # 所有命令默认在 openwrt 目录执行
 
     steps:
       - name: Checkout repository
@@ -19,27 +21,26 @@ jobs:
 
       - name: Prepare environment
         run: |
-          # 确保换行符格式正确并设置文件可执行权限
+          # 转换换行符并设置执行权限
           sed -i 's/\r$//' docker-build.sh build.sh || true
           chmod +x docker-build.sh build.sh
-          # 创建 bin 和 files 目录
+          # 创建输出目录
           mkdir -p bin files
-          # 设置目录权限
           sudo chmod -R 777 bin files
 
-      - name: Pull ImmortalWRT ImageBuilder
-        run: docker pull immortalwrt/imagebuilder:armsr-armv8-openwrt-24.10  # 使用 armv8 镜像
+      - name: Pull OpenWRT ImageBuilder
+        run: docker pull openwrt/imagebuilder:layerscape-armv8_64b-master  # 使用 armv8_64b 镜像
 
       - name: Build firmware
         run: ./docker-build.sh  # 执行构建脚本
 
-      - name: Upload artifacts (backup)
+      - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: immortalwrt-images
-          path: immortalwrt/bin/  # 上传构建输出的文件夹
+          name: openwrt-images
+          path: openwrt/bin/
 
-      # 计算北京时间（UTC+8）
+      # 🕒 获取北京时间（UTC+8）
       - name: Get Beijing Time
         id: time
         run: |
@@ -51,14 +52,15 @@ jobs:
         run: |
           echo "files=$(ls -1 bin/ | sed 's/^/  - /')" >> $GITHUB_OUTPUT
 
+      # 🚀 发布 Release
       - name: Publish to GitHub Release
         uses: softprops/action-gh-release@v2
-        if: github.ref == 'refs/heads/main'  # 仅在 main 分支时执行
+        if: github.ref == 'refs/heads/main'
         with:
-          tag_name: build-${{ github.run_number }}
-          name: "OneCloud ImmortalWrt {{ github.run_number }}"  # 固定名称
+          tag_name: build-${{ github.run_number }}   # 每次构建仍保留独立 tag
+          name: "N1 OpenWrt"  # ✅ 固定标题，不带编号
           body: |
-            ✅ N1 ImmortalWrt 固件自动构建完成！
+            ✅ N1 OpenWrt 固件自动构建完成！
 
             - 分支：${{ github.ref_name }}
             - 构建编号：${{ github.run_number }}
@@ -68,12 +70,12 @@ jobs:
             ```bash
             ${{ steps.list_files.outputs.files }}
             ```
-          files: immortalwrt/bin/**
+          files: openwrt/bin/**
           overwrite_files: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # 🧹 自动删除旧 Release，仅保留最新 1 个
+      # 🧹 清理旧版本，只保留最近 1 个
       - name: Clean up old releases
         if: github.ref == 'refs/heads/main'
         uses: dev-drprasad/delete-older-releases@v0.3.4
