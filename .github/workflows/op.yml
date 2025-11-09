@@ -12,15 +12,18 @@ jobs:
         working-directory: openwrt
 
     steps:
+      # 1️⃣ 检出仓库
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      # 2️⃣ 清理旧的 release 目录
       - name: Clean old release folder
         run: |
           echo "🧹 清理旧的 release/openwrt 目录..."
           rm -rf release/openwrt || true
           mkdir -p release/openwrt
 
+      # 3️⃣ 准备构建环境
       - name: Prepare environment
         run: |
           sed -i 's/\r$//' docker-build.sh build.sh || true
@@ -28,20 +31,25 @@ jobs:
           mkdir -p bin files
           sudo chmod -R 777 bin files
 
+      # 4️⃣ 列出可用的 ImageBuilder 配置
       - name: List available profiles
         run: docker run --rm openwrt/imagebuilder:armsr-armv8-main make info | head -n 50
 
+      # 5️⃣ 拉取 OpenWRT ImageBuilder 镜像
       - name: Pull OpenWRT ImageBuilder
         run: docker pull openwrt/imagebuilder:armsr-armv8-main
 
+      # 6️⃣ 构建固件
       - name: Build firmware
         run: ./docker-build.sh
 
+      # 7️⃣ 输出构建目录内容（调试用）
       - name: Debug output
         run: |
           echo "=== openwrt/bin 内容 ==="
           ls -R bin || true
 
+      # 8️⃣ 打包固件文件
       - name: Package OpenWRT firmware
         run: |
           echo "📦 打包固件文件..."
@@ -50,11 +58,13 @@ jobs:
           echo "✅ release/openwrt/ 目录内容如下："
           ls -R release/openwrt || true
 
+      # 9️⃣ 检查 release 目录（调试）
       - name: Debug check release folder
         run: |
           echo "🔍 release/openwrt/ 内容如下："
           find release/openwrt || echo "⚠️ release/openwrt 为空"
 
+      # 🔟 上传到 GitHub Actions Artifacts
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -63,12 +73,14 @@ jobs:
           if-no-files-found: warn
           compression-level: 6
 
+      # 11️⃣ 获取北京时间
       - name: Get Beijing Time
         id: time
         run: |
           export TZ=Asia/Shanghai
           echo "datetime=$(date '+%Y-%m-%d %H:%M:%S %Z')" >> $GITHUB_OUTPUT
 
+      # 12️⃣ 获取构建文件列表
       - name: List built files
         id: list_files
         run: |
@@ -78,6 +90,7 @@ jobs:
             echo 'EOF'
           } >> $GITHUB_OUTPUT
 
+      # 13️⃣ 发布到 GitHub Release（已修正路径）
       - name: Publish to GitHub Release
         uses: softprops/action-gh-release@v2
         if: always()
@@ -95,12 +108,13 @@ jobs:
             ```
             ${{ steps.list_files.outputs.files }}
             ```
-          files: release/openwrt/**/*
-          overwrite_files: true          # ✅ 正确字段（替代 overwrite）
+          files: openwrt/release/openwrt/**/*
+          overwrite_files: true          # ✅ 修正为正确字段
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      # 14️⃣ 清理旧版本，只保留最新 1 个
       - name: Clean up old OpenWRT releases
         if: github.ref == 'refs/heads/main'
         uses: dev-drprasad/delete-older-releases@v0.3.3
