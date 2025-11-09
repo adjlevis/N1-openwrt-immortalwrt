@@ -2,6 +2,7 @@ name: N1 OpenWRT docker Build
 
 on:
   workflow_dispatch:
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -43,8 +44,16 @@ jobs:
 
       - name: Package OpenWRT firmware
         run: |
+          echo "📦 打包固件文件..."
           mkdir -p release/openwrt
-          cp -r bin/* release/openwrt/ || true
+          cp -r bin/targets/armsr/armv8/* release/openwrt/ 2>/dev/null || cp -r bin/* release/openwrt/ || true
+          echo "✅ release/openwrt/ 目录内容如下："
+          ls -R release/openwrt || true
+
+      - name: Debug check release folder
+        run: |
+          echo "🔍 release/openwrt/ 内容如下："
+          find release/openwrt || echo "⚠️ release/openwrt 为空"
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
@@ -71,7 +80,7 @@ jobs:
 
       - name: Publish to OpenWRT Release
         uses: softprops/action-gh-release@v2
-        if: github.ref == 'refs/heads/main'
+        if: always()
         with:
           tag_name: N1-OpenWRT
           name: "N1 OpenWRT"
