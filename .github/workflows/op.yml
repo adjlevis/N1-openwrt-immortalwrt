@@ -2,10 +2,10 @@ name: N1 OpenWRT docker Build
 
 on:
   push:
-    branches: [ main ]  # 当推送到 main 分支时触发
-  workflow_dispatch:     # 允许手动触发
+    branches: [ main ]
+  workflow_dispatch:
   release:
-    types: [published]   # 当发布时触发
+    types: [published]
 
 jobs:
   build:
@@ -16,11 +16,9 @@ jobs:
         working-directory: openwrt
 
     steps:
-      # ✅ 检出仓库
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # ✅ 准备环境
       - name: Prepare environment
         run: |
           sed -i 's/\r$//' docker-build.sh build.sh || true
@@ -28,25 +26,25 @@ jobs:
           mkdir -p bin files
           sudo chmod -R 777 bin files
 
-      # ✅ 列出可用 profile（调试）
       - name: List available profiles
         run: docker run --rm openwrt/imagebuilder:armsr-armv8-main make info | head -n 50
 
-      # ✅ 拉取镜像
       - name: Pull OpenWRT ImageBuilder
         run: docker pull openwrt/imagebuilder:armsr-armv8-main
 
-      # ✅ 构建固件
       - name: Build firmware
         run: ./docker-build.sh
 
-      # ✅ 调试输出结果
       - name: Debug output
         run: |
           echo "=== openwrt/bin 内容 ==="
           ls -R bin || true
 
-      # ✅ 上传构建产物
+      - name: Package OpenWRT firmware
+        run: |
+          mkdir -p release/openwrt
+          cp -r bin/* release/openwrt/ || true
+
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -55,14 +53,12 @@ jobs:
           if-no-files-found: warn
           compression-level: 6
 
-      # 🕒 获取北京时间（UTC+8）
       - name: Get Beijing Time
         id: time
         run: |
           export TZ=Asia/Shanghai
           echo "datetime=$(date '+%Y-%m-%d %H:%M:%S %Z')" >> $GITHUB_OUTPUT
 
-      # ✅ 修复多行输出写法
       - name: List built files
         id: list_files
         run: |
@@ -72,21 +68,12 @@ jobs:
             echo 'EOF'
           } >> $GITHUB_OUTPUT
 
-      # ✅ 调试查看生成文件
-      - name: Show firmware files
-        run: |
-          echo "=== 确认固件路径 ==="
-          ls -lh openwrt/bin/targets/armsr/armv8/ || true
-
-      # 🚀 发布 Release（名称固定为 N1 OpenWrt）
-      - name: Publish to GitHub Release
+      - name: Publish to Shared GitHub Release
         uses: softprops/action-gh-release@v2
         if: github.ref == 'refs/heads/main'
         with:
-          tag_name: build-${{ github.run_number }}
-          name: "N1 OpenWrt"
-          generate_release_notes: true
-          make_latest: true
+          tag_name: N1-Firmware
+          name: "N1 Firmware Builds"
           body: |
             ✅ N1 OpenWrt 固件自动构建完成！
 
@@ -98,12 +85,11 @@ jobs:
             ```
             ${{ steps.list_files.outputs.files }}
             ```
-          files: |
-            openwrt/bin/targets/armsr/armv8/*.{img,bin,tar,tar.gz,img.gz,bin.gz}
+          files: release/openwrt/**/*
+          append_body: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # 🧹 清理旧版本，只保留最近 1 个
       - name: Clean up old releases
         if: github.ref == 'refs/heads/main'
         uses: dev-drprasad/delete-older-releases@v0.3.4
