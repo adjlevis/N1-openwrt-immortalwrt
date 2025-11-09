@@ -2,61 +2,85 @@ name: N1 OpenWRT docker Build
 
 on:
   push:
-    branches:
-      - main  # 仅在 main 分支推送时触发
-  workflow_dispatch:  # 允许手动触发工作流
+    branches: [ main ]  # 仅在 main 分支推送时触发
+  workflow_dispatch:     # 允许手动触发
   release:
-    types: [published]  # 在发布新版本时触发
+    types: [published]   # 当发布时触发
 
 jobs:
   build:
     runs-on: ubuntu-latest
+
     defaults:
       run:
-        working-directory: openwrt  # 设置工作目录为 openwrt
+        working-directory: openwrt  # 所有命令默认在 openwrt 目录执行
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Ensure scripts are executable (and convert line endings)
+      - name: Prepare environment
         run: |
-          # 安装 dos2unix 工具并转换换行符
-          sudo apt-get update
-          sudo apt-get install -y dos2unix
-          # 转换文件换行符，避免 Windows/Linux 换行符问题
-          dos2unix openwrt/docker-build.sh openwrt/build.sh  # 修正路径
-          # 设置文件可执行权限
-          chmod +x openwrt/docker-build.sh openwrt/build.sh   # 修正路径
+          # 转换换行符并设置执行权限
+          sed -i 's/\r$//' docker-build.sh build.sh || true
+          chmod +x docker-build.sh build.sh
+          # 创建输出目录
+          mkdir -p bin files
+          sudo chmod -R 777 bin files
 
-      - name: Build OpenWRT image
-        run: ./openwrt/docker-build.sh  # 执行构建脚本，路径已修正
+      - name: Pull OpenWRT ImageBuilder
+        run: docker pull openwrt/imagebuilder:layerscape-armv8_64b-master  # 使用 armv8_64b 镜像
 
-      - name: List build outputs
-        run: |
-          echo "Build completed. Files in ./bin:"
-          # 列出生成的文件，若没有 bin 目录，则打印信息
-          find openwrt/bin -type f || echo "No bin directory found"
+      - name: Build firmware
+        run: ./docker-build.sh  # 执行构建脚本
 
-      - name: Delete old releases
-        uses: dev-drprasad/delete-older-releases@v0.3.3
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
         with:
-          keep_latest: 1  # 仅保留最新的一个 Release
-          delete_tags: true  # 删除旧的标签
+          name: openwrt-images
+          path: openwrt/bin/
+
+      # 🕒 获取北京时间（UTC+8）
+      - name: Get Beijing Time
+        id: time
+        run: |
+          export TZ=Asia/Shanghai
+          echo "datetime=$(date '+%Y-%m-%d %H:%M:%S %Z')" >> $GITHUB_OUTPUT
+
+      - name: List built files
+        id: list_files
+        run: |
+          echo "files=$(ls -1 bin/ | sed 's/^/  - /')" >> $GITHUB_OUTPUT
+
+      # 🚀 发布 Release
+      - name: Publish to GitHub Release
+        uses: softprops/action-gh-release@v2
+        if: github.ref == 'refs/heads/main'
+        with:
+          tag_name: build-${{ github.run_number }}
+          name: "N1 OpenWrt{{ github.run_number }}"  # 固定标题
+          body: |
+            ✅ N1 OpenWrt 固件自动构建完成！
+
+            - 分支：${{ github.ref_name }}
+            - 构建编号：${{ github.run_number }}
+            - 发布时间（北京时间）：${{ steps.time.outputs.datetime }}
+
+            以下为本次构建的固件文件：
+            ```bash
+            ${{ steps.list_files.outputs.files }}
+            ```
+          files: openwrt/bin/**
+          overwrite_files: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Create new release
-        uses: softprops/action-gh-release@v2
+      # 🧹 清理旧版本，只保留最近 1 个
+      - name: Clean up old releases
+        if: github.ref == 'refs/heads/main'
+        uses: dev-drprasad/delete-older-releases@v0.3.4
         with:
-          tag_name: latest  # 使用最新版本标签
-          name: OpenWRT Build $(date +'%Y-%m-%d')  # 发布名称，带上当前日期
-          body: |
-            Auto-built OpenWRT image for OneCloud
-            Date: $(date +'%Y-%m-%d %H:%M:%S')
-          # 上传 openwrt 目录下的 bin 目录下的所有文件
-          files: |
-            openwrt/bin/**/*
-
+          keep_latest: 1
+          delete_tags: true
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # 使用 GitHub Token 进行认证
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
