@@ -50,7 +50,12 @@ jobs:
       - name: List built files
         id: list_files
         run: |
-          echo "files=$(ls -1 bin/ | sed 's/^/  - /')" >> $GITHUB_OUTPUT
+          {
+            echo 'files<<EOF'
+            ls -1 bin/
+            echo 'EOF'
+          } >> $GITHUB_OUTPUT
+
 
       # 🚀 发布 Release
       - name: Publish to GitHub Release
@@ -70,7 +75,7 @@ jobs:
             ```bash
             ${{ steps.list_files.outputs.files }}
             ```
-          files: openwrt/bin/**
+          文件: openwrt/bin/**
           overwrite_files: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
