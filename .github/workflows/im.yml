@@ -44,43 +44,41 @@ jobs:
         id: time
         run: |
           export TZ=Asia/Shanghai
-          # 获取当前时间并保存到输出
           echo "datetime=$(date '+%Y-%m-%d %H:%M:%S %Z')" >> $GITHUB_OUTPUT
 
       - name: List built files
         id: list_files
         run: |
-          # 列出 bin 目录中的文件
           echo "files=$(ls -1 bin/ | sed 's/^/  - /')" >> $GITHUB_OUTPUT
 
       - name: Publish to GitHub Release
         uses: softprops/action-gh-release@v2
         if: github.ref == 'refs/heads/main'  # 仅在 main 分支时执行
         with:
-          tag_name: build-${{ github.run_number }}  # 使用构建编号作为标签
-          name: "ImmortalWRT Firmware #${{ github.run_number }} — ${{ steps.time.outputs.datetime }}"  # 发布的名字，包含时间戳
+          tag_name: build-${{ github.run_number }}
+          name: "OneCloud ImmortalWrt — Build #${{ github.run_number }}"  # 固定名称
           body: |
-            ✅ 自动构建固件完成！
+            ✅ OneCloud ImmortalWrt 固件自动构建完成！
 
             - 分支：${{ github.ref_name }}
             - 构建编号：${{ github.run_number }}
             - 发布时间（北京时间）：${{ steps.time.outputs.datetime }}
 
-            以下为构建的固件文件：
+            以下为本次构建的固件文件：
             ```bash
             ${{ steps.list_files.outputs.files }}
             ```
-          files: immortalwrt/bin/**  # 上传所有生成的固件文件
-          overwrite_files: true  # 如果文件已存在，覆盖它们
+          files: immortalwrt/bin/**
+          overwrite_files: true
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # 必须的 GitHub Token
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       # 🧹 自动删除旧 Release，仅保留最新 1 个
       - name: Clean up old releases
-        if: github.ref == 'refs/heads/main'  # 仅在 main 分支时执行
+        if: github.ref == 'refs/heads/main'
         uses: dev-drprasad/delete-older-releases@v0.3.4
         with:
-          keep_latest: 1  # 只保留最新的 release
-          delete_tags: true  # 删除旧的标签
+          keep_latest: 1
+          delete_tags: true
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # 必须的 GitHub Token
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
